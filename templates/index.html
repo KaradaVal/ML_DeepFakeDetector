@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detektor Deepfake (Gambar & Video)</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        min-height: 100vh;
+        background-color: #f4f7f6;
+        color: #333;
+        margin: 0;
+        padding: 1rem;
+        box-sizing: border-box;
+      }
+      .container {
+        background: #ffffff;
+        padding: 2rem 3rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 500px;
+        width: 100%;
+      }
+      h1 {
+        color: #1a237e;
+        margin-bottom: 2rem;
+        font-size: 1.8rem;
+      }
+
+      /* Media (Gambar atau Video) Pratinjau */
+      #mediaPreviewContainer {
+        width: 100%;
+        height: 300px; /* Tinggi tetap */
+        margin-bottom: 1.5rem;
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #fafafa;
+        overflow: hidden;
+        display: none; /* Sembunyi awalnya */
+      }
+      #previewImage {
+        max-width: 100%;
+        max-height: 100%;
+        display: none;
+      }
+      #previewVideo {
+        max-width: 100%;
+        max-height: 100%;
+        display: none;
+      }
+
+      .upload-btn-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        margin-bottom: 1rem;
+      }
+      .btn {
+        border: 2px solid #3f51b5;
+        color: #3f51b5;
+        background-color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .upload-btn-wrapper input[type="file"] {
+        font-size: 100px;
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .upload-btn-wrapper .btn:hover {
+        background-color: #3f51b5;
+        color: white;
+      }
+      #predictButton {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        display: none; /* Sembunyi awalnya */
+      }
+      #predictButton:hover {
+        background-color: #45a049;
+      }
+      #predictButton:disabled {
+        background-color: #9e9e9e;
+        cursor: not-allowed;
+      }
+
+      /* Status & Loader */
+      #statusContainer {
+        margin-top: 1rem;
+        display: none;
+      }
+      #loader {
+        border: 6px solid #f3f3f3;
+        border-top: 6px solid #3f51b5;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 10px auto;
+      }
+      #statusText {
+        font-style: italic;
+        color: #555;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Hasil */
+      #resultContainer {
+        margin-top: 1.5rem;
+        font-size: 1.2rem;
+        display: none; /* Sembunyi awalnya */
+      }
+      #resultText {
+        font-weight: bold;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+      }
+      #confidenceText {
+        color: #555;
+      }
+      .real {
+        color: #009688;
+      }
+      .fake {
+        color: #f44336;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Detektor Deepfake (Gambar & Video)</h1>
+
+      <!-- Pratinjau Media -->
+      <div id="mediaPreviewContainer">
+        <img id="previewImage" src="#" alt="Pratinjau Gambar" />
+        <video id="previewVideo" controls muted alt="Pratinjau Video"></video>
+      </div>
+
+      <!-- Tombol Upload -->
+      <div class="upload-btn-wrapper">
+        <button class="btn" id="uploadButtonText">
+          Pilih File (Gambar/Video)
+        </button>
+        <input
+          type="file"
+          id="fileInput"
+          accept="image/png, image/jpeg, image/jpg, video/mp4"
+        />
+      </div>
+
+      <!-- Tombol Prediksi -->
+      <button id="predictButton">Deteksi!</button>
+
+      <!-- Status & Loader -->
+      <div id="statusContainer">
+        <div id="loader"></div>
+        <div id="statusText"></div>
+      </div>
+
+      <!-- Hasil Prediksi -->
+      <div id="resultContainer">
+        <div id="resultText"></div>
+        <div id="confidenceText"></div>
+        <div
+          id="analysisInfo"
+          style="font-size: 0.9rem; color: #777; margin-top: 10px"
+        ></div>
+      </div>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById("fileInput");
+      const mediaPreviewContainer = document.getElementById(
+        "mediaPreviewContainer"
+      );
+      const previewImage = document.getElementById("previewImage");
+      const previewVideo = document.getElementById("previewVideo");
+      const predictButton = document.getElementById("predictButton");
+      const statusContainer = document.getElementById("statusContainer");
+      const loader = document.getElementById("loader");
+      const statusText = document.getElementById("statusText");
+      const resultContainer = document.getElementById("resultContainer");
+      const resultText = document.getElementById("resultText");
+      const confidenceText = document.getElementById("confidenceText");
+      const analysisInfo = document.getElementById("analysisInfo");
+      const uploadButtonText = document.getElementById("uploadButtonText");
+
+      let currentFile = null;
+
+      // 1. Tampilkan pratinjau saat file dipilih
+      fileInput.addEventListener("change", function () {
+        const file = this.files[0];
+        if (!file) return;
+
+        currentFile = file;
+        const fileType = file.type;
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          if (fileType.startsWith("image/")) {
+            previewImage.src = e.target.result;
+            previewImage.style.display = "block";
+            previewVideo.style.display = "none";
+            previewVideo.src = ""; // Hapus video lama
+          } else if (fileType.startsWith("video/")) {
+            previewVideo.src = URL.createObjectURL(file); // Lebih efisien untuk video
+            previewVideo.style.display = "block";
+            previewImage.style.display = "none";
+            previewImage.src = "#";
+          }
+          mediaPreviewContainer.style.display = "flex";
+          predictButton.style.display = "inline-block";
+          resultContainer.style.display = "none";
+          uploadButtonText.innerText = "Ganti File";
+        };
+
+        if (fileType.startsWith("image/")) {
+          reader.readAsDataURL(file); // Baca gambar sebagai Data URL
+        } else {
+          // Untuk video, kita hanya perlu memicu event load
+          // (URL.createObjectURL sudah menangani pratinjau)
+          reader.onload();
+        }
+      });
+
+      // 2. Kirim file ke backend saat tombol "Deteksi" diklik
+      predictButton.addEventListener("click", async function () {
+        if (!currentFile) {
+          alert("Silakan pilih file terlebih dahulu.");
+          return;
+        }
+
+        // Tampilkan status, sembunyikan tombol & hasil
+        showStatus("Mengunggah file...", false);
+        predictButton.style.display = "none";
+        resultContainer.style.display = "none";
+
+        let endpoint = "";
+        let formData = new FormData();
+        const fileType = currentFile.type;
+
+        if (fileType.startsWith("image/")) {
+          endpoint = "/predict_image";
+          formData.append("image", currentFile);
+        } else if (fileType.startsWith("video/")) {
+          endpoint = "/predict_video";
+          formData.append("video", currentFile);
+          showStatus(
+            "Memproses video... Ini mungkin memakan waktu hingga satu menit.",
+            true
+          );
+        } else {
+          displayError("Tipe file tidak didukung.");
+          return;
+        }
+
+        try {
+          // Kirim request ke API Flask
+          const response = await fetch(endpoint, {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          // Tampilkan hasil
+          if (data.success) {
+            displayResult(data);
+          } else {
+            displayError(data.error);
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          displayError("Gagal terhubung ke server. Coba lagi nanti.");
+        } finally {
+          // Sembunyikan status, tampilkan tombol lagi
+          statusContainer.style.display = "none";
+          predictButton.style.display = "inline-block";
+        }
+      });
+
+      // Fungsi helper untuk UI
+      function showStatus(message, showLoader) {
+        statusText.innerText = message;
+        loader.style.display = showLoader ? "block" : "none";
+        statusContainer.style.display = "block";
+      }
+
+      function displayResult(data) {
+        resultText.innerText = data.prediction;
+        confidenceText.innerText = `Tingkat Keyakinan: ${data.confidence}`;
+
+        // Ganti warna berdasarkan hasil
+        resultText.className = data.prediction.includes("Asli")
+          ? "real"
+          : "fake";
+
+        // Tampilkan info tambahan jika video
+        if (data.type === "video") {
+          analysisInfo.innerText = `(Dianalisis ${data.frames_analyzed} frame dari video)`;
+        } else {
+          analysisInfo.innerText = "";
+        }
+
+        resultContainer.style.display = "block";
+      }
+
+      function displayError(errorMessage) {
+        resultText.innerText = "Error";
+        resultText.className = "fake";
+        confidenceText.innerText = errorMessage;
+        analysisInfo.innerText = "";
+        resultContainer.style.display = "block";
+      }
+    </script>
+  </body>
+</html>
