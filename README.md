@@ -5,9 +5,9 @@
 ---
 
 ## 👥 Anggota Kelompok
-Marco Darian Thomas(221112216)
-Hugo Edri Chandra(221111848)
-Valentino Karada(221110851)
+* Marco Darian Thomas(221112216) => Train Model
+* Hugo Edri Chandra(221111848) => FrontEnd & Backend
+* Valentino Karada(221110851) => Dokumentasi
 ---
 
 ## 🛠️ Teknologi yang Digunakan
