@@ -208,9 +208,9 @@ def predict_video_route():
             'success': True,
             'prediction': predicted_label,
             'confidence': f'{confidence:.2f}%',
-            'raw_score': avg_score,
+            'raw_score': float(avg_score),
             'type': 'video',
-            'frames_analyzed': len(predictions_list)
+            'frames_analyzed': int(len(predictions_list))
         })
 
     except Exception as e:
